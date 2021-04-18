@@ -1,0 +1,216 @@
+---
+title: "Science Seekers: Basic Statistics in Psychology Module <br> Script Used to Generate the Data"
+author: Kai Xiang Lim
+date: 19 April, 2021
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+---
+``` {r setup, echo=F}
+knitr::opts_chunk$set(collapse=T)
+```
+# Introduction to Basic Statistics in the Psychology module
+This R script aims to generate a dataset for the purpose of 100SoM-IMEX Science Seeker programme
+
+## Description of example dataset:
+- SPM Maths trials results of 3 schools (long format). 
+- Among them, SPM results of 2 schools are normally distributed with the same mean and sd,the 3rd school has much higher mean. 
+
+## Steps taken
+### 1. Housekeeping
+Firstly we clear the workspace and load the libraries needed. 
+```{r housekeeping }
+rm(list=ls()) # clear the workspace
+
+#set.seed for reproducible "random" numbers 
+set.seed(1234)
+
+#load neccesary packages
+require(ggplot2)
+require(psych)
+require(truncnorm)
+require(patchwork)
+```
+
+### 2. Data used on the slides
+The data below were "generated" as illustrative purpose for the slides for this module
+
+``` {r data used on slides}
+central_tendency_eg<-c(10, 10, 10, 20, 30, 20, 10, 30, 20, 30)
+
+mean(central_tendency_eg)
+
+median(central_tendency_eg)
+
+#function to get mode
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+getmode(central_tendency_eg)
+
+(central_tendency_eg)
+
+```
+
+### 3. Generate data for the three schools
+```{r data for schools}
+#Generate random ID numbers
+IdenNum<-c(100:999)
+#generate a column for School A and School B
+School=c(rep("SMK Ravenclaw",300),rep("SMK Slytherin",300), rep("SMK Hufflepuff", 300)) # schools as caegorical data
+Sex=c(rep(c("Male","Female"),450)) # sex as binary/categorical data
+data<-as.data.frame(cbind(IdenNum,School,Sex))
+head(data)
+
+#generate normally distributed scores for students from SMK Slytherin and SMK Ravenclaw separately. 
+
+Ravenclaw_score<-round(rnorm(100, mean = 30, sd = 10),0)
+Slytherin_score<-round(rnorm(100,mean = 30, sd = 10),0)
+Hufflepuff_score<-Slytherin_score+40
+
+
+describe(Ravenclaw_score) #min=7, max=55, mean=28
+describe(Slytherin_score) #min=1, max=60, mean-30
+describe(Hufflepuff_score) # min=41, max=100, mean=70
+t.test(Ravenclaw_score,Slytherin_score) #Slytherin has higher mean score with p-value >0.05
+t.test(Slytherin_score,Hufflepuff_score) # Hufflepuff has higher mean score with p-value <0.05
+data$Score<-ifelse(data$School=="SMK Ravenclaw", Ravenclaw_score,
+                   ifelse(data$School=="SMK Slytherin",Slytherin_score,
+                          ifelse(data$School=="SMK Hufflepuff", Hufflepuff_score,NA)))
+
+data$Grade<-as.factor(ifelse(data$Score<40, "G",
+                             ifelse(data$Score>=40&data$Score<45, "E",
+                                    ifelse(data$Score>=45&data$Score<50, "D",
+                                           ifelse(data$Score>=50&data$Score<55, "C",
+                                                  ifelse(data$Score>=55&data$Score<60, "C+",
+                                                         ifelse(data$Score>=60&data$Score<65, "B",
+                                                                ifelse(data$Score>=65&data$Score<70, "B+",
+                                                                       ifelse(data$Score>=70&data$Score<80,"A-",
+                                                                              ifelse(data$Score>=80&data$Score<90,"A",
+                                                                                     ifelse(data$Score>=90&data$Score<=100,"A+",NA)))))))))))
+```
+
+### 4. Plotting the figures 
+``` {r not-sure, echo=F}
+#hist(data[data$School=="SMK Ravenclaw",]$Score)
+```
+
+
+##### Histogram for SMK Ravenclaw
+``` {r histogram for SMK Ravenclaw}
+ggplot(data,aes(x=Score))+
+  geom_histogram(data=subset(data,School=="SMK Ravenclaw"), fill= "red", breaks=seq(0, 100, by=10), 
+                 col="black", 
+                 alpha = .2)+
+  labs(title="Distribution of scores of SMK Ravenclaw students")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+#### Histogram for SMK Slytherin
+``` {r histogram for SMK Slytherin}
+ggplot(data,aes(x=Score))+
+  geom_histogram(data=subset(data,School=="SMK Slytherin"), fill= "blue", breaks=seq(0, 100, by=10), 
+                 col="black", 
+                 alpha = .2)+
+  labs(title="Distribution of scores of SMK Slytherin students")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+#### Histogram for SMK Hufflepuff
+``` {r histogram Hufflepuff}
+ggplot(data,aes(x=Score))+
+  geom_histogram(data=subset(data,School=="SMK Hufflepuff"), fill= "green", breaks=seq(0, 100, by=10), 
+                 col="black", 
+                 alpha = .2)+
+  labs(title="Distribution of scores of SMK Hufflepuff students")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### Plotting histograms of both Slytherin and Ravenclaw together:
+``` {r 2 schools histogram}
+ggplot(data,aes(x=Score, fill=School)) + 
+  geom_histogram(data=subset(data,School == 'SMK Ravenclaw'),col="black", breaks=seq(0, 100, by=10),alpha = 0.5) +
+  geom_histogram(data=subset(data,School == 'SMK Slytherin'),col="black",breaks=seq(0, 100, by=10), alpha = 0.5)+
+  labs(title="Distribution of scores of SMK Ravenclaw and SMK Slytherin")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### Plotting Hufflepuff against Ravenclaw
+
+```{r Hufflepuff vs Ravenclaw}
+ggplot(data,aes(x=Score,fill=School)) +   
+  geom_histogram(data=subset(data,School == 'SMK Ravenclaw'),col="black", breaks=seq(0, 100, by=10),alpha = 0.5) +
+  geom_histogram(data=subset(data,School == 'SMK Hufflepuff'),col="black",breaks=seq(0, 100, by=10), alpha = 0.5)+
+  labs(title="Distribution of scores of SMK Ravenclaw and SMK Hufflepuff")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_fill_manual(values=c("SMK Ravenclaw"="Red","SMK Hufflepuff"="Green" ))
+
+```
+
+#### Boxplot for SMK Hufflepuff
+``` {r boxplotHufflepuff}
+
+boxplot(subset(data, School=="SMK Hufflepuff")$Score,main="Boxplot: SMK Hufflepuff Scores", col="green")
+```
+
+
+#### Boxplot for all schools
+``` {r boxplot all schools}
+ggplot(data,aes(x=Score,y=School, fill=School))+
+  geom_boxplot()+ylab("")+labs(title="Boxplot for all schools")
+```
+
+### 5. Identifying data type
+#### Recode data such that grade is ordinal variable, score is continuous variable, sex is categorical variable
+
+Reorder grade and plot bar chart
+``` {r recode data}
+data$Grade <- ordered(data$Grade, levels = c("G", "E", "D", 
+                                             "C", "C+", "B",
+                                             "B+", "A-", "A",
+                                             "A+"))
+plot(data$Grade, col=c("black", "red","orange","pink", "yellow","green",
+                       "blue", "violet", "purple", "brown"), 
+     main="Distribution of grades of all three schools")
+```
+
+### 6. Mean, mode, median 
+#### Showing mean score for each school 
+``` {r mean scores}
+table<-aggregate(data$Score, list(data$School), mean)
+colnames(table)<-c("School", "Mean")
+table
+
+table2<-aggregate(data$Score, list(data$School), median)
+colnames(table2)<-c("School", "Median")
+table2
+
+merge(table,table2, by="School")
+
+```
+
+
+#### Get mode
+``` {r get mode}
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+table3<-aggregate(as.factor(data$Grade), list(data$School), getmode)
+colnames(table3)<-c("School", "Mode")
+table3
+```
+
+
+### 6. Save the data
+```{r save data, eval=FALSE, include=T}
+setwd("/Users/kai/OneDrive - King's College London/PhD/outside_PhD/iMEX_SoM")
+xlsx::write.xlsx(data, "Maths_trial_data.xlsx")
+
+```
